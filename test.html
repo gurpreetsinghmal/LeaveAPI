@@ -1,65 +1,40 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-    <title>Google Sheet DataTable</title>
+    <title>CORS-Free Google Sheet Table</title>
 
-    <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.5/js/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css" />
 
-    <style>
-        body {
-            font-family: Arial;
-            padding: 20px;
-        }
-    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tabletop.js/1.5.4/tabletop.min.js"></script>
 </head>
 
 <body>
+<h2>Google Sheet → DataTable (CORS-Free)</h2>
 
-    <h2>Google Sheet → DataTable</h2>
+<table id="sheetTable" class="display" width="100%"></table>
 
-    <table id="sheetTable" class="display" width="100%"></table>
+<script>
+window.onload = function() {
 
-    <script>
-        $(document).ready(function () {
+    Tabletop.init({
+        key: "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk",
+        simpleSheet: true,
+        callback: function (data) {
 
-            // Your Google Sheet ID
-            var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
+            var columns = Object.keys(data[0]).map(k => ({ title: k }));
+            var rows = data.map(obj => Object.values(obj));
 
-            // gviz API URL (NO CORS)
-            var url =
-                "https://docs.google.com/spreadsheets/d/" +
-                sheetID +
-                "/gviz/tq?tqx=out:json&tq&gid=0";
+            $("#sheetTable").DataTable({
+                data: rows,
+                columns: columns
+            });
+        }
+    });
 
-            fetch(url)
-                .then(res => res.text())
-                .then(text => {
-                    // Clean Google GViz JSON
-                    var json = JSON.parse(text.substr(47).slice(0, -2));
-
-                    // Extract header + rows
-                    var columns = json.table.cols.map(col => ({
-                        title: col.label
-                    }));
-
-                    var rows = json.table.rows.map(row =>
-                        row.c.map(cell => (cell ? cell.v : ""))
-                    );
-
-                    // Initialize DataTable
-                    $("#sheetTable").DataTable({
-                        data: rows,
-                        columns: columns
-                    });
-                })
-                .catch(err => console.error("Error loading sheet:", err));
-
-        });
-    </script>
+}
+</script>
 
 </body>
-
 </html>
