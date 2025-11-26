@@ -18,7 +18,7 @@
 
 <body>
 
-    <h2>Google Sheet → DataTable</h2>
+    <h2>Leave Reports</h2>
 
     <table id="sheetTable" class="display" width="100%"></table>
 <script>
@@ -73,45 +73,10 @@
     });
 </script>
 
-    <!-- <script>
-        $(document).ready(function () {
-
-            // Your Google Sheet ID
-            var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
-
-            // gviz API URL (NO CORS)
-            var url =
-                "https://docs.google.com/spreadsheets/d/" +
-                sheetID +
-                "/gviz/tq?tqx=out:json&tq&gid=0";
-
-            fetch(url)
-                .then(res => res.text())
-                .then(text => {
-                    // Clean Google GViz JSON
-                    var json = JSON.parse(text.substr(47).slice(0, -2));
-
-                    // Extract header + rows
-                    var columns = json.table.cols.map(col => ({
-                        title: col.label
-                    }));
-
-                    var rows = json.table.rows.map(row =>
-                        row.c.map(cell => (cell ? cell.v : ""))
-                    );
-
-                    // Initialize DataTable
-                    $("#sheetTable").DataTable({
-                        data: rows,
-                        columns: columns
-                    });
-                })
-                .catch(err => console.error("Error loading sheet:", err));
-
-        });
-    </script> -->
+   
 
 </body>
 
 </html>
+
 
