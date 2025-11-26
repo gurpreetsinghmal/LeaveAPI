@@ -11,28 +11,20 @@
 </head>
 
 <body>
-<h2>Google Sheet → DataTable (No CORS, No Empty Columns)</h2>
+<h2>Google Sheet → DataTable (CORS-Free)</h2>
 
 <table id="sheetTable" class="display" width="100%"></table>
 
 <script>
-window.onload = function () {
+window.onload = function() {
 
     Tabletop.init({
         key: "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk",
         simpleSheet: true,
         callback: function (data) {
 
-            // Remove columns where all rows are empty
-            let cleanKeys = Object.keys(data[0]).filter(key => {
-                return data.some(row => row[key] && row[key].toString().trim() !== "");
-            });
-
-            // Build columns for DataTable
-            let columns = cleanKeys.map(k => ({ title: k }));
-
-            // Build row data only for clean columns
-            let rows = data.map(row => cleanKeys.map(k => row[k] || ""));
+            var columns = Object.keys(data[0]).map(k => ({ title: k }));
+            var rows = data.map(obj => Object.values(obj));
 
             $("#sheetTable").DataTable({
                 data: rows,
