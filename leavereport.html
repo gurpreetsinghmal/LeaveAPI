@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Leave Reports</title>
+    <title>Employee Leave Dashboard</title>
 
     <script src="https://code.jquery.com/jquery-3.5.1.js"></script>
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.5/css/jquery.dataTables.min.css">
@@ -10,93 +10,102 @@
 
     <style>
         body {
-            font-family: Arial;
+            font-family: "Segoe UI", Arial, sans-serif;
+            background: #f5f7fa;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .header {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 25px;
+            color: #222;
+        }
+
+        .dashboard {
+            display: flex;
+            gap: 25px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .card {
+            background: white;
+            padding: 20px 25px;
+            width: 260px;
+            border-radius: 14px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+            border-left: 6px solid #4d79ff;
+        }
+
+        .card-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #666;
+        }
+
+        .card-value {
+            font-size: 32px;
+            margin-top: 5px;
+            font-weight: 700;
+            color: #2a2a2a;
+        }
+
+        table.dataTable {
+            background: white;
+            border-radius: 12px !important;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .dataTables_wrapper {
             padding: 20px;
+            border-radius: 12px;
+            background: white;
+        }
+
+        .dataTables_filter input {
+            border-radius: 6px;
+            padding: 6px 10px;
+            border: 1px solid #ccc;
+        }
+
+        .dataTables_length select {
+            border-radius: 6px;
+            padding: 5px;
         }
     </style>
 </head>
 
 <body>
 
-    <h2>Leave Reports</h2>
+    <div class="header">Employee Leave Dashboard</div>
+
+    <div class="dashboard">
+        <div class="card">
+            <div class="card-title">Today’s Employees on Leave</div>
+            <div class="card-value" id="leaveCount">0</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Total Records</div>
+            <div class="card-value" id="totalRecords">0</div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Month’s Leaves</div>
+            <div class="card-value" id="monthLeaves">0</div>
+        </div>
+    </div>
 
     <table id="sheetTable" class="display" width="100%"></table>
-<script>
-    $(document).ready(function () {
 
-        var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
-
-        var url =
-            "https://docs.google.com/spreadsheets/d/" +
-            sheetID +
-            "/gviz/tq?tqx=out:json&tq&gid=0";
-
-        fetch(url)
-            .then(res => res.text())
-            .then(text => {
-                var json = JSON.parse(text.substr(47).slice(0, -2));
-
-                var rawCols = json.table.cols;
-                var rawRows = json.table.rows.map(r => r.c);
-
-                // REMOVE EMPTY COLUMNS
-                let validColumnIndexes = [];
-
-                rawCols.forEach((col, i) => {
-                    let headerEmpty = !col.label || col.label.trim() === "";
-                    let columnEmpty = rawRows.every(r => !r[i] || r[i].v === "" || r[i].v === null);
-
-                    if (!headerEmpty && !columnEmpty) {
-                        validColumnIndexes.push(i);
-                    }
-                });
-
-                // Format Google Date → YYYY-MM-DD
-                function formatGoogleDate(value) {
-                    if (typeof value === "string" && value.startsWith("Date(")) {
-                        let parts = value.replace("Date(", "").replace(")", "").split(",");
-                        let year = parts[0];
-                        let month = parseInt(parts[1]) + 1; // Google uses 0-11 months
-                        let day = parts[2];
-
-                        if (month < 10) month = "0" + month;
-                        if (day < 10) day = "0" + day;
-
-                        return `${day}-${month}-${year}`; // change format here
-                    }
-                    return value;
-                }
-
-                // Clean columns
-                var columns = validColumnIndexes.map(i => ({
-                    title: rawCols[i].label
-                }));
-
-                // Clean & format rows
-                var rows = rawRows.map(r =>
-                    validColumnIndexes.map(i => {
-                        let cell = r[i] ? r[i].v : "";
-                        return formatGoogleDate(cell);
-                    })
-                );
-
-                $("#sheetTable").DataTable({
-                    data: rows,
-                    columns: columns
-                });
-            })
-            .catch(err => console.error("Error loading sheet:", err));
-
-    });
-</script>
-
-    <!-- <script>
+    <script>
         $(document).ready(function () {
 
-            // Your Google Sheet ID
             var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
 
-            // gviz API URL (NO CORS)
             var url =
                 "https://docs.google.com/spreadsheets/d/" +
                 sheetID +
@@ -105,31 +114,100 @@
             fetch(url)
                 .then(res => res.text())
                 .then(text => {
-                    // Clean Google GViz JSON
                     var json = JSON.parse(text.substr(47).slice(0, -2));
 
-                    // Extract header + rows
-                    var columns = json.table.cols.map(col => ({
-                        title: col.label
-                    }));
+                    var rawCols = json.table.cols;
+                    var rawRows = json.table.rows.map(r => r.c);
 
-                    var rows = json.table.rows.map(row =>
-                        row.c.map(cell => (cell ? cell.v : ""))
+                    let validColumnIndexes = [];
+
+                    // REMOVE EMPTY COLUMNS
+                    rawCols.forEach((col, i) => {
+                        let headerEmpty = !col.label || col.label.trim() === "";
+                        let columnEmpty = rawRows.every(r => !r[i] || r[i].v === "" || r[i].v === null);
+
+                        if (!headerEmpty && !columnEmpty) {
+                            validColumnIndexes.push(i);
+                        }
+                    });
+
+                    // Convert Google GViz Date → dd-MMM-yyyy
+                    function formatGoogleDate(value) {
+                        if (typeof value === "string" && value.startsWith("Date(")) {
+                            let parts = value.replace("Date(", "").replace(")", "").split(",");
+                            let year = parts[0];
+                            let monthIndex = parseInt(parts[1]);
+                            let day = parseInt(parts[2]);
+
+                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+                            let monthName = months[monthIndex];
+                            if (day < 10) day = "0" + day;
+
+                            return `${day}-${monthName}-${year}`;
+                        }
+                        return value;
+                    }
+
+                    // Find date column index
+                    let dateColumnIndex = rawCols.findIndex(c =>
+                        c.label.toLowerCase().includes("date")
                     );
 
-                    // Initialize DataTable
+                    // Clean & format rows
+                    var rows = rawRows.map(r =>
+                        validColumnIndexes.map(i => {
+                            let cell = r[i] ? r[i].v : "";
+                            return formatGoogleDate(cell);
+                        })
+                    );
+
+                    // Prepare column headers
+                    var columns = validColumnIndexes.map(i => ({
+                        title: rawCols[i].label
+                    }));
+
+                    // Update Dashboard Values
+                    document.getElementById("totalRecords").innerText = rows.length;
+
+                    // Today's date in dd-MMM-yyyy
+                    let today = new Date();
+                    let yyyy = today.getFullYear();
+                    let mmName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][today.getMonth()];
+                    let dd = String(today.getDate()).padStart(2, "0");
+                    let todayStr = `${dd}-${mmName}-${yyyy}`;
+
+                    let leaveTodayCount = 0;
+                    let monthCount = 0;
+                    let currentMonth = mmName;
+
+                    rawRows.forEach(r => {
+                        let cell = r[dateColumnIndex] ? r[dateColumnIndex].v : "";
+                        let formatted = formatGoogleDate(cell);
+
+                        if (formatted === todayStr) leaveTodayCount++;
+
+                        if (formatted.includes(currentMonth)) monthCount++;
+                    });
+
+                    document.getElementById("leaveCount").innerText = leaveTodayCount;
+                    document.getElementById("monthLeaves").innerText = monthCount;
+
+                    // Load DataTable
                     $("#sheetTable").DataTable({
                         data: rows,
-                        columns: columns
+                        columns: columns,
+                        pageLength: 10
                     });
                 })
                 .catch(err => console.error("Error loading sheet:", err));
 
         });
-    </script> -->
+    </script>
 
 </body>
 
-
 </html>
+
 
