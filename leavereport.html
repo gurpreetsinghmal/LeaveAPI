@@ -13,46 +13,58 @@
             font-family: "Segoe UI", Arial, sans-serif;
             background: #f5f7fa;
             margin: 0;
-            padding: 30px;
+            padding: 0;
         }
 
-        .header {
-            font-size: 28px;
-            font-weight: 700;
-            margin-bottom: 25px;
-            color: #222;
+        header {
+            background: linear-gradient(135deg, #0052cc, #0066ff);
+            padding: 18px 30px;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
         }
 
         .dashboard {
-            display: flex;
-            gap: 25px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            padding: 20px;
         }
 
         .card {
             background: white;
             padding: 20px 25px;
-            width: 260px;
             border-radius: 14px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
-            border-left: 6px solid #4d79ff;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
         }
 
-        .card-title {
-            font-size: 15px;
+        .card h3 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+            color: #222;
+        }
+
+        .card ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            font-size: 16px;
+            color: #555;
+        }
+
+        .card ul li {
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .card ul li span.value {
             font-weight: 600;
-            color: #666;
-        }
-
-        .card-value {
-            font-size: 32px;
-            margin-top: 5px;
-            font-weight: 700;
-            color: #2a2a2a;
+            color: #0052cc;
         }
 
         table.dataTable {
+            margin: 20px;
             background: white;
             border-radius: 12px !important;
             overflow: hidden;
@@ -64,150 +76,148 @@
             border-radius: 12px;
             background: white;
         }
-
-        .dataTables_filter input {
-            border-radius: 6px;
-            padding: 6px 10px;
-            border: 1px solid #ccc;
-        }
-
-        .dataTables_length select {
-            border-radius: 6px;
-            padding: 5px;
-        }
     </style>
 </head>
 
 <body>
 
-    <div class="header">Employee Leave Dashboard</div>
+    <header>Employee Leave Dashboard</header>
 
     <div class="dashboard">
         <div class="card">
-            <div class="card-title">Today’s Employees on Leave</div>
-            <div class="card-value" id="leaveCount">0</div>
+            <h3>Today's Leaves</h3>
+            <ul>
+                <li>Developers: <span id="devToday" class="value">0</span></li>
+                <li>Helpdesk: <span id="helpToday" class="value">0</span></li>
+                <li>MTS: <span id="mtsToday" class="value">0</span></li>
+                <li>Staff: <span id="staffToday" class="value">0</span></li>
+            </ul>
         </div>
 
         <div class="card">
-            <div class="card-title">Total Records</div>
-            <div class="card-value" id="totalRecords">0</div>
-        </div>
-
-        <div class="card">
-            <div class="card-title">Month’s Leaves</div>
-            <div class="card-value" id="monthLeaves">0</div>
+            <h3>This Month Leaves</h3>
+            <ul>
+                <li>Developers: <span id="devMonth" class="value">0</span></li>
+                <li>Helpdesk: <span id="helpMonth" class="value">0</span></li>
+                <li>MTS: <span id="mtsMonth" class="value">0</span></li>
+                <li>Staff: <span id="staffMonth" class="value">0</span></li>
+                <li>Total Leaves: <span id="totalMonth" class="value">0</span></li>
+            </ul>
         </div>
     </div>
 
+    <h3 style="padding-left:20px;">Today's Employees on Leave</h3>
+    <table id="todayTable" class="display" width="100%"></table>
+
+    <h3 style="padding-left:20px;">Full Leave Records</h3>
     <table id="sheetTable" class="display" width="100%"></table>
 
     <script>
         $(document).ready(function () {
-
             var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
-
-            var url =
-                "https://docs.google.com/spreadsheets/d/" +
-                sheetID +
-                "/gviz/tq?tqx=out:json&tq&gid=0";
+            var url = `https://docs.google.com/spreadsheets/d/${sheetID}/gviz/tq?tqx=out:json&tq&gid=0`;
 
             fetch(url)
                 .then(res => res.text())
                 .then(text => {
                     var json = JSON.parse(text.substr(47).slice(0, -2));
-
                     var rawCols = json.table.cols;
                     var rawRows = json.table.rows.map(r => r.c);
 
-                    let validColumnIndexes = [];
+                    let validCols = rawCols
+                        .map((c, i) => ({ ...c, idx: i }))
+                        .filter(c => c.label && c.label.trim() !== "");
 
-                    // REMOVE EMPTY COLUMNS
-                    rawCols.forEach((col, i) => {
-                        let headerEmpty = !col.label || col.label.trim() === "";
-                        let columnEmpty = rawRows.every(r => !r[i] || r[i].v === "" || r[i].v === null);
+                    let columns = validCols.map(c => ({ title: c.label }));
+                    let rows = rawRows.map(r => validCols.map(c => formatGVizDate(r[c.idx]?.v || "")));
 
-                        if (!headerEmpty && !columnEmpty) {
-                            validColumnIndexes.push(i);
-                        }
-                    });
-
-                    // Convert Google GViz Date → dd-MMM-yyyy
-                    function formatGoogleDate(value) {
-                        if (typeof value === "string" && value.startsWith("Date(")) {
-                            let parts = value.replace("Date(", "").replace(")", "").split(",");
-                            let year = parts[0];
-                            let monthIndex = parseInt(parts[1]);
-                            let day = parseInt(parts[2]);
-
-                            const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-                            let monthName = months[monthIndex];
-                            if (day < 10) day = "0" + day;
-
-                            return `${day}-${monthName}-${year}`;
-                        }
-                        return value;
-                    }
-
-                    // Find date column index
-                    let dateColumnIndex = rawCols.findIndex(c =>
-                        c.label.toLowerCase().includes("date")
-                    );
-
-                    // Clean & format rows
-                    var rows = rawRows.map(r =>
-                        validColumnIndexes.map(i => {
-                            let cell = r[i] ? r[i].v : "";
-                            return formatGoogleDate(cell);
-                        })
-                    );
-
-                    // Prepare column headers
-                    var columns = validColumnIndexes.map(i => ({
-                        title: rawCols[i].label
-                    }));
-
-                    // Update Dashboard Values
-                    document.getElementById("totalRecords").innerText = rows.length;
-
-                    // Today's date in dd-MMM-yyyy
-                    let today = new Date();
-                    let yyyy = today.getFullYear();
-                    let mmName = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][today.getMonth()];
-                    let dd = String(today.getDate()).padStart(2, "0");
-                    let todayStr = `${dd}-${mmName}-${yyyy}`;
-
-                    let leaveTodayCount = 0;
-                    let monthCount = 0;
-                    let currentMonth = mmName;
-
-                    rawRows.forEach(r => {
-                        let cell = r[dateColumnIndex] ? r[dateColumnIndex].v : "";
-                        let formatted = formatGoogleDate(cell);
-
-                        if (formatted === todayStr) leaveTodayCount++;
-
-                        if (formatted.includes(currentMonth)) monthCount++;
-                    });
-
-                    document.getElementById("leaveCount").innerText = leaveTodayCount;
-                    document.getElementById("monthLeaves").innerText = monthCount;
-
-                    // Load DataTable
                     $("#sheetTable").DataTable({
                         data: rows,
-                        columns: columns,
-                        pageLength: 10
+                        columns: columns
                     });
-                })
-                .catch(err => console.error("Error loading sheet:", err));
 
+                    updateDashboard(rawRows, rawCols);
+                })
+                .catch(err => console.error("Error:", err));
+
+            function formatGVizDate(value) {
+                if (typeof value === "string" && value.startsWith("Date(")) {
+                    let parts = value.replace("Date(", "").replace(")", "").split(",");
+                    let y = parts[0], m = parseInt(parts[1]), d = parseInt(parts[2]);
+                    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                    if (d < 10) d = "0" + d;
+                    return `${d}-${months[m]}-${y}`;
+                }
+                return value;
+            }
+
+            function updateDashboard(rows, cols) {
+                let dateCol = cols.findIndex(c => c.label.toLowerCase().includes("date"));
+                let postCol = cols.findIndex(c => c.label.toLowerCase() === "post");
+                let nameCol = cols.findIndex(c => c.label.toLowerCase().includes("name"));
+
+                let today = new Date();
+                let todayStr = `${String(today.getDate()).padStart(2, "0")}-${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][today.getMonth()]}-${today.getFullYear()}`;
+                let monthStr = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][today.getMonth()];
+
+                let counts = {
+                    devToday: 0, helpToday: 0, mtsToday: 0, staffToday: 0,
+                    devMonth: 0, helpMonth: 0, mtsMonth: 0, staffMonth: 0
+                };
+
+                let todayEmployees = [];
+
+                rows.forEach(r => {
+                    let post = r[postCol]?.v;
+                    let dateVal = formatGVizDate(r[dateCol]?.v);
+                    let name = r[nameCol]?.v;
+                    if (!post || !dateVal) return;
+
+                    // Today counts
+                    if (dateVal === todayStr) {
+                        if (post === "Developer") counts.devToday++;
+                        if (post === "Helpdesk") counts.helpToday++;
+                        if (post === "MTS") counts.mtsToday++;
+                        if (post === "Staff") counts.staffToday++;
+
+                        todayEmployees.push([name, post, dateVal]);
+                    }
+
+                    // Month counts
+                    if (dateVal.includes(monthStr)) {
+                        if (post === "Developer") counts.devMonth++;
+                        if (post === "Helpdesk") counts.helpMonth++;
+                        if (post === "MTS") counts.mtsMonth++;
+                        if (post === "Staff") counts.staffMonth++;
+                    }
+                });
+
+                // Update cards
+                $("#devToday").text(counts.devToday);
+                $("#helpToday").text(counts.helpToday);
+                $("#mtsToday").text(counts.mtsToday);
+                $("#staffToday").text(counts.staffToday);
+
+                $("#devMonth").text(counts.devMonth);
+                $("#helpMonth").text(counts.helpMonth);
+                $("#mtsMonth").text(counts.mtsMonth);
+                $("#staffMonth").text(counts.staffMonth);
+                $("#totalMonth").text(counts.devMonth + counts.helpMonth + counts.mtsMonth + counts.staffMonth);
+
+                // Populate Today's Employees table
+                $("#todayTable").DataTable({
+                    destroy: true,
+                    data: todayEmployees,
+                    columns: [
+                        { title: "Name" },
+                        { title: "POST" },
+                        { title: "Date" }
+                    ]
+                });
+            }
         });
     </script>
 
 </body>
 
 </html>
-
-
