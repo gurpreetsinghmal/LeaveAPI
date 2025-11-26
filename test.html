@@ -21,8 +21,59 @@
     <h2>Google Sheet → DataTable</h2>
 
     <table id="sheetTable" class="display" width="100%"></table>
+<script>
+    $(document).ready(function () {
 
-    <script>
+        var sheetID = "1X2TVrDAh43bxUR8y0XjwwCaEPcxfDoG-Rh_eiFJypRk";
+
+        var url =
+            "https://docs.google.com/spreadsheets/d/" +
+            sheetID +
+            "/gviz/tq?tqx=out:json&tq&gid=0";
+
+        fetch(url)
+            .then(res => res.text())
+            .then(text => {
+                var json = JSON.parse(text.substr(47).slice(0, -2));
+
+                var rawCols = json.table.cols;
+                var rawRows = json.table.rows.map(r => r.c);
+
+                // REMOVE EMPTY COLUMNS
+                let validColumnIndexes = [];
+
+                rawCols.forEach((col, i) => {
+                    let headerEmpty = !col.label || col.label.trim() === "";
+
+                    // Check if entire column is empty
+                    let columnEmpty = rawRows.every(r => !r[i] || r[i].v === "" || r[i].v === null);
+
+                    if (!headerEmpty && !columnEmpty) {
+                        validColumnIndexes.push(i);
+                    }
+                });
+
+                // Clean columns
+                var columns = validColumnIndexes.map(i => ({
+                    title: rawCols[i].label
+                }));
+
+                // Clean rows
+                var rows = rawRows.map(r =>
+                    validColumnIndexes.map(i => (r[i] ? r[i].v : ""))
+                );
+
+                $("#sheetTable").DataTable({
+                    data: rows,
+                    columns: columns
+                });
+            })
+            .catch(err => console.error("Error loading sheet:", err));
+
+    });
+</script>
+
+    <!-- <script>
         $(document).ready(function () {
 
             // Your Google Sheet ID
@@ -58,8 +109,9 @@
                 .catch(err => console.error("Error loading sheet:", err));
 
         });
-    </script>
+    </script> -->
 
 </body>
 
 </html>
+
